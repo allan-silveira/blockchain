@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+        <title>Blockchain</title>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/3.1.9-1/crypto-js.js"></script>
+    </head>
+    <body>
+        <h1>Blockchain</h1>
+        <div style="max-width: 420px;">
+            <!--Html para adicionar o bloco-->
+            <div style="  margin:0; border:2px solid black; max-width: 200px; float: left;">
+                <h2>Adcionar um Bloco</h2>
+                Dificuldade: <input id="dificuldade" type="text"/><br>
+                Dados: <input id="dados" type="text"/><br>
+                <br><button id="salvar" style="margin-left: 10px;">Salvar</button>
+            </div>
+            
+            
+            <!--Html para alterar o bloco-->
+            <div style="  margin:0; margin-left: 4px; border:2px solid black; max-width: 200px; float: left;">
+                <h2>Alterar um Bloco</h2>
+                Indice: <input id="indice" type="text"/><br>
+                Dados: <input id="altDados" type="text"/><br>
+                <br><button id="alterar" style="margin-left: 10px;">Aleterar</button>
+            </div>
+            <button style="margin-top: 10px; margin-left: 176px;" id="valida">Validar</button>
+            
+            <ul>
+        
+            </ul>
+
+        </div> 
+            
+        
+
+        <script type="text/javaScript" charset="utf-8">            
+            //resgatando os elementos do código html
+            var inputdif = document.getElementById('dificuldade'),
+                inputdad = document.getElementById('dados'),
+                inputind = document.getElementById('indice'),
+                inputada = document.getElementById('altDados'),
+                buttonsav = document.getElementById('salvar'),
+                buttonalt = document.getElementById('alterar'),
+                buttonval = document.getElementById('valida'),
+                lista = document.querySelector('ul');
+
+            //classe do bloco
+            class Bloco{
+                constructor(dados, dificuldade, indice, antHash = "" ){
+                    this.dados = dados;
+                    this.dificuldade = dificuldade;
+                    this.indice = indice;
+                    this.antHash = antHash;
+                    this.hash = this.geraHash();
+                    this.timestamp = new Date();
+                    this.nonce = 0;
+                }
+                //função para gerar o hash do bloco
+                geraHash(){
+                    return CryptoJS.SHA256(this.indice + this.antHash + JSON.stringify(this.dados) + this.timestamp + this.nonce).toString();
+                }
+
+                //função para minerar o bloco e cronometrar a mineração
+                mine(dificuldade){
+                    var inicio = performance.now();
+                    while(!(/^0*$/.test(this.hash.substring(0, this.dificuldade)))){
+                        this.nonce++;
+                        this.hash = this.geraHash();
+                    }
+                    console.log(performance.now() - inicio);
+                }
+            }
+
+            //classe da blockchain onde se criar a cadeia
+            class Blockchain{
+                constructor(){
+                    this.chain = [];
+                    this.indice = 1;
+                }
+                //função para buscar o bloco anterior
+                antBloc(){
+                    if (this.chain.length === 0) {
+                        return null
+                    }
+                    else{
+                        return this.chain[this.chain.length - 1]
+                    }                    
+                }
+
+                //função para adicionar um novo bloco
+                addBloco(dados, dificuldade){
+                    const indice = this.indice;
+                    let antHash = null;
+                    //caso esteja vazia ele passa direto para que possa adicionar o bloco 0
+                    if(this.antBloc() !== null){
+                        antHash = this.antBloc().hash;
+                    }
+                    
+                    const bloco = new Bloco(dados, dificuldade, indice, antHash);
+                    bloco.mine(dificuldade);
+
+                    this.chain.push(bloco);
+                    this.indice ++
+                }
+
+                //função para validar
+                valida() {
+                    for (let i = 1; i < this.chain.length; i++) {
+                        let blocoAtual = this.chain[i];
+                        const blocoAnt = this.chain[i - 1];
+
+                        //aqui é para que seja verificado o bloco zero também
+                        if(i === 1){
+                            blocoAtual = this.chain[0];
+                            if(blocoAtual.hash !== blocoAtual.geraHash()){    
+                                return false;
+                            }
+                            blocoAtual = this.chain[i];
+                        }
+
+                        if (blocoAtual.hash !== blocoAtual.geraHash()) {
+                            return false;
+                        }
+
+                        if (blocoAtual.antHash !== blocoAnt.hash) {
+                            return false;
+                        }
+                    }
+                    return true;
+                }
+
+            }
+            
+            
+            let blockChain = new Blockchain();
+            //verificar se foi clicado o botao salva e assim adicionar um novo bloco a cadeia e ja exibir o bloco na lista
+            buttonsav.addEventListener('click', function(){
+                var dificuldade = inputdif.value,
+                    dados = inputdad.value;
+                blockChain.addBloco(dados,dificuldade);
+                lista.innerHTML = "";                
+                for(var a = 0; a < blockChain.chain.length; a ++){
+                    var li = document.createElement('li');
+                    li.innerHTML = 'Bloco '+ a +': <br>dados: ' + blockChain.chain[a].dados + ' <br>hash anterior: ' + blockChain.chain[a].antHash +' <br>hash do bloco: '+ blockChain.chain[a].hash +'<br><br>';
+                    lista.appendChild(li);
+                }                
+            });       
+
+            //verificar se foi clicado o botao validar assim verifica atraves da função valida e exibe um alerta se esta valida ou invalida
+            buttonval.addEventListener('click', function(){
+                    if( blockChain.valida() === true){
+                        alert("Blockchain válida");
+                    }
+                    else{
+                        alert("Blockchain inválida");
+                    }    
+            });
+
+            //verificar se o botao alterar foi clicado se sim ele altera o bloco e ja atualiza o conteudo da lista
+            buttonalt.addEventListener('click', function() {
+                var indice = inputind.value,
+                    dado = inputada.value;
+                blockChain.chain[indice].dados = dado;
+                lista.innerHTML = "";                
+                for(var a = 0; a < blockChain.chain.length; a ++){
+                    var li = document.createElement('li');
+                    li.innerHTML = 'Bloco '+ a +': <br>dados: ' + blockChain.chain[a].dados + ' <br>hash anterior: ' + blockChain.chain[a].antHash +' <br>hash do bloco: '+ blockChain.chain[a].hash +'<br><br>';
+                    lista.appendChild(li);
+                }
+            });
+             
+        </script>
+    </body>
+</html>
